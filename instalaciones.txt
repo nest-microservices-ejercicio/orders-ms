@@ -1,0 +1,29 @@
+pnpm add dotenv
+pnpm add zod
+pnpm add class-transformer class-validator
+
+
+// ---- Microservicios
+    pnpm add @nestjs/common@11 @nestjs/core@11 @nestjs/platform-express@11 @nestjs/microservices@11
+
+
+// ----- Prisma 
+    pnpm add -D prisma@6.19.0
+    pnpm add @prisma/client@6.19.0
+    
+    # Iniciamos prisma
+        pnpm prisma init
+        o
+        pnpm exec prisma init
+
+    # Generamos el cliente
+        pnpm prisma generate
+
+    # Migramos
+        pnpm prisma migrate dev 
+
+
+
+//--- NATS
+
+    pnpm add nats
