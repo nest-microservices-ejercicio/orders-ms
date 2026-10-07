@@ -1,12 +1,13 @@
-
 import { ChangeOrderStatusDto } from './dto/change-order-status.dto';
 import { HttpStatus, Inject, Injectable, OnModuleInit } from '@nestjs/common';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { PrismaClient } from '@prisma/client';
 import { ClientProxy, RpcException } from '@nestjs/microservices';
 import { OrderPaginationDto } from 'src/orders/dto/order-Pagination.dto';
-import { catchError, firstValueFrom } from 'rxjs';
+import { firstValueFrom } from 'rxjs';
 import { NATS_SERVICE } from 'src/config';
+import { OrderWithProducts } from './interfaces/order-with-products.interface';
+import { PaidOrderDto } from './dto';
 
 @Injectable()
 export class OrdersService extends PrismaClient implements OnModuleInit {
@@ -80,7 +81,7 @@ export class OrdersService extends PrismaClient implements OnModuleInit {
         ...order,
         OrderItem: order.OrderItem.map((orderItem) => ({
           ...orderItem,
-          name: products.find(prod => prod.id === orderItem.productId).name
+          name: products.find(prod => prod.id === orderItem.productId).name as string
         }))
       };
 
@@ -182,6 +183,46 @@ export class OrdersService extends PrismaClient implements OnModuleInit {
       data: {status}
     })
 
+  }
+
+
+  //? --- Creacion del pago -------------------------------
+  async createPaymentSession(order: OrderWithProducts) {
+    const paymentSession = await firstValueFrom(
+      this.client.send('create.payment.session', {
+        orderId: order.id,
+        currency: 'usd',
+        items: order.OrderItem.map( item => ({
+          name: item.name,
+          quantity: item.quantity,
+          price: item.price
+        }))
+      })
+    )
+
+    return paymentSession
+  }
+
+  //? --- Cuando el pago se realizo ---
+  async paidOrder(paidOrderDto: PaidOrderDto) {
+
+    const order = await this.order.update({
+      where: {id: paidOrderDto.orderId},
+      data: {
+        status: 'PAID',
+        paid: true,
+        paidAt: new Date(),
+        stripeChargeId: paidOrderDto.stripePaymentId,
+        //- Relacion con la tabla de orderRecipt
+        OrderReceipt: {
+          create: {
+            receiptUrl: paidOrderDto.receiptUrl
+          }
+        }
+      }
+    });
+
+    return order 
   }
 
 }
